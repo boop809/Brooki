@@ -16,8 +16,12 @@ const {
     TouchableOpacity, 
     StyleSheet, 
     Animated,
-    Easing
+    Easing,
+    ActivityIndicator,
+    NativeModules
 } = metro.common?.ReactNative || metro.ReactNative || metro.findByProps("View", "Text");
+
+const RecAudioRecorder = NativeModules.RecAudioRecorder;
 
 // Initialize storage for setting persistence
 storage.recAudio = storage.recAudio || {
@@ -30,9 +34,49 @@ function SettingsView() {
     const [enabled, setEnabled] = React.useState(storage.recAudio.enabled);
     const [audioQuality, setAudioQuality] = React.useState(storage.recAudio.audioQuality);
     const [dualChannel, setDualChannel] = React.useState(storage.recAudio.dualChannel);
+    const [isRecording, setIsRecording] = React.useState(false);
+    const [actionLoading, setActionLoading] = React.useState(false);
 
     // Cassette Wheel Rotation Animation
     const rotateAnim = React.useRef(new Animated.Value(0)).current;
+
+    React.useEffect(() => {
+        if (RecAudioRecorder && typeof RecAudioRecorder.isRecording === "function") {
+            RecAudioRecorder.isRecording().then(status => {
+                setIsRecording(status);
+            }).catch(console.error);
+        }
+    }, []);
+
+    const toggleRecording = async () => {
+        if (!RecAudioRecorder) {
+            if (typeof alert !== "undefined") {
+                alert("RecAudioRecorder Native Module not loaded! Make sure the tweak is built and installed correctly.");
+            }
+            return;
+        }
+
+        try {
+            setActionLoading(true);
+            if (isRecording) {
+                const result = await RecAudioRecorder.stopRecording();
+                setIsRecording(false);
+                if (typeof alert !== "undefined") {
+                    alert("Recording stopped and successfully saved to your Photos Album!");
+                }
+            } else {
+                const result = await RecAudioRecorder.startRecording();
+                setIsRecording(true);
+            }
+        } catch (err) {
+            console.error(err);
+            if (typeof alert !== "undefined") {
+                alert("Recording Error: " + err.message);
+            }
+        } finally {
+            setActionLoading(false);
+        }
+    };
 
     React.useEffect(() => {
         let animation;
@@ -121,6 +165,25 @@ function SettingsView() {
                     {enabled ? "Tape is rolling. System audio blocks bypassed." : "Cassette idle. Remote voices blocked by iOS."}
                 </Text>
             </View>
+
+            {/* Record Trigger Button */}
+            <TouchableOpacity 
+                style={[
+                    styles.recordBtn, 
+                    isRecording ? styles.recordBtnRecording : styles.recordBtnIdle,
+                    actionLoading && { opacity: 0.7 }
+                ]} 
+                onPress={toggleRecording}
+                disabled={actionLoading}
+            >
+                {actionLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                    <Text style={styles.recordBtnText}>
+                        {isRecording ? "🔴 Stop Recording (Save to Album)" : "🎬 Start Screen & Call Recording"}
+                    </Text>
+                )}
+            </TouchableOpacity>
 
             {/* Quick Walkthrough Guide */}
             <Text style={styles.sectionTitle}>Screen Recording Walkthrough</Text>
@@ -458,6 +521,26 @@ const styles = StyleSheet.create({
         color: "#1C1C24",
         fontSize: 10,
         fontWeight: "bold",
+    },
+    recordBtn: {
+        borderRadius: 12,
+        paddingVertical: 14,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 24,
+        elevation: 3,
+    },
+    recordBtnIdle: {
+        backgroundColor: "#5865F2",
+    },
+    recordBtnRecording: {
+        backgroundColor: "#EA2027",
+    },
+    recordBtnText: {
+        color: "#FFFFFF",
+        fontWeight: "900",
+        fontSize: 15,
+        letterSpacing: 0.5,
     }
 });
 

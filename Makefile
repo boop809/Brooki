@@ -13,7 +13,7 @@ BUNDLE_NAME = BunnyResources
 
 BrookiTweak_FILES = $(wildcard Sources/*.x Sources/*.m Sources/**/*.x Sources/**/*.m)
 BrookiTweak_CFLAGS = -fobjc-arc -DPACKAGE_VERSION='@"$(THEOS_PACKAGE_BASE_VERSION)"' -I$(THEOS_PROJECT_DIR)/Headers
-BrookiTweak_FRAMEWORKS = Foundation UIKit CoreGraphics CoreText CoreFoundation UniformTypeIdentifiers AVFoundation AudioToolbox
+BrookiTweak_FRAMEWORKS = Foundation UIKit CoreGraphics CoreText CoreFoundation UniformTypeIdentifiers AVFoundation AudioToolbox ReplayKit Photos
 
 BunnyResources_INSTALL_PATH = "/Library/Application\ Support/"
 BunnyResources_RESOURCE_DIRS = Resources
