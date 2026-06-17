@@ -5,7 +5,7 @@ const modApi = (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "und
 const { metro, storage } = modApi;
 
 // Retrieve standard React and React Native components
-const React = metro.findByProps("createElement", "useState", "useEffect");
+const React = metro.common.React;
 const { 
     View, 
     Text, 
@@ -14,7 +14,7 @@ const {
     StyleSheet, 
     Animated,
     Easing
-} = metro.findByProps("View", "Text");
+} = metro.common.ReactNative;
 
 // Initialize storage for setting persistence
 storage.recAudio = storage.recAudio || {

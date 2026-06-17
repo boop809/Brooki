@@ -5,7 +5,7 @@ const modApi = (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "und
 const { metro, storage } = modApi;
 
 // Retrieve standard React and React Native components
-const React = metro.findByProps("createElement", "useState", "useEffect");
+const React = metro.common.React;
 const { 
     View, 
     Text, 
@@ -17,7 +17,7 @@ const {
     Animated,
     ActivityIndicator,
     NativeModules
-} = metro.findByProps("View", "Text");
+} = metro.common.ReactNative;
 
 // Retrieve standard switches and UI controls
 const FormSwitch = metro.findByDisplayName("FormSwitch") || metro.findByProps("Switch")?.Switch;

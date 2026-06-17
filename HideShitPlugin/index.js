@@ -5,14 +5,14 @@ const modApi = (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "und
 const { metro, patcher, storage, commands } = modApi;
 
 // Retrieve standard React and React Native components
-const React = metro.findByProps("createElement", "useState", "useEffect");
+const React = metro.common.React;
 const { 
     View, 
     Text, 
     ScrollView, 
     TouchableOpacity, 
     StyleSheet
-} = metro.findByProps("View", "Text");
+} = metro.common.ReactNative;
 const FormSwitch = metro.findByDisplayName("FormSwitch") || metro.findByProps("Switch")?.Switch;
 
 // Initialize storage structure

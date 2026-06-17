@@ -5,7 +5,7 @@ const modApi = (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "und
 const { metro, patcher, storage } = modApi;
 
 // Retrieve standard React and React Native components
-const React = metro.findByProps("createElement", "useState", "useEffect");
+const React = metro.common.React;
 const { 
     View, 
     Text, 
@@ -16,7 +16,7 @@ const {
     StyleSheet,
     ActivityIndicator,
     FlatList
-} = metro.findByProps("View", "Text");
+} = metro.common.ReactNative;
 
 // Initialize storage structure
 storage.editUsers = storage.editUsers || {};

@@ -5,7 +5,7 @@ const modApi = (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "und
 const { metro, patcher, storage } = modApi;
 
 // Retrieve React and React Native components from Discord's internal modules
-const React = metro.findByProps("createElement", "useState", "useEffect");
+const React = metro.common.React;
 const { 
     View, 
     Text, 
@@ -15,7 +15,7 @@ const {
     Animated, 
     Dimensions,
     ActivityIndicator 
-} = metro.findByProps("View", "Text");
+} = metro.common.ReactNative;
 
 // Locate Slider and Switch components or create high-quality custom ones
 const FormSlider = metro.findByDisplayName("FormSlider") || metro.findByProps("Slider")?.Slider;
