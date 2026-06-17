@@ -2,7 +2,7 @@
     "name": "Voice Changer",
     "description": "Premium real-time Voice Changer with professional DSP presets, custom pitch/echo sliders, and an interactive audio visualizer.",
     "main": "index.js",
-    "hash": "e83933dfc16b20d2acd69834b6521f71ca9cf3c75e5fcb2925bcb8868f79be34",
+    "hash": "219931de0b9634f1e0917e36f32b03677682980ac1cb9eaafd700bc8e38fc9de",
     "authors": [
         {
             "name": "cocobo1"

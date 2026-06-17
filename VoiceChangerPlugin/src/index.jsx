@@ -3,15 +3,9 @@
 
 (() => {
 try {
-const modApi = (
-    typeof kettu !== "undefined" ? kettu :
-    typeof revenge !== "undefined" ? revenge :
-    typeof bunny !== "undefined" ? bunny :
-    typeof vendetta !== "undefined" ? vendetta :
-    window.kettu || window.revenge || window.bunny || window.vendetta
-);
+const modApi = typeof vendetta !== "undefined" ? vendetta : window.vendetta;
 const { metro, patcher } = modApi;
-const storage = modApi.plugin?.storage || modApi.storage;
+const storage = modApi.plugin?.storage || {};
 
 // Retrieve React and React Native components from Discord's internal modules
 const React = metro.common?.React || metro.React || metro.findByProps("createElement", "useState", "useEffect");

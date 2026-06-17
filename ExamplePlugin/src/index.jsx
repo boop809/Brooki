@@ -4,13 +4,7 @@
 // Safely get the API of the mod loader (works for Bunny, Pyoncord, or Vendetta)
 (() => {
 try {
-const modApi = (
-    typeof kettu !== "undefined" ? kettu :
-    typeof revenge !== "undefined" ? revenge :
-    typeof bunny !== "undefined" ? bunny :
-    typeof vendetta !== "undefined" ? vendetta :
-    window.kettu || window.revenge || window.bunny || window.vendetta
-);
+const modApi = typeof vendetta !== "undefined" ? vendetta : window.vendetta;
 const { metro, patcher, commands } = modApi;
 
 // We will store our unpatch functions here to clean up when unloading
