@@ -75,6 +75,18 @@ for (const plugin of plugins) {
                     delete manifest.author;
                 }
                 
+                // Add vendetta icon mapping matching Silentdeletee style
+                const icons = {
+                    "EditUsersPlugin": "ic_edit_24px",
+                    "HideShitPlugin": "ic_visibility_24px",
+                    "VoiceChangerPlugin": "ic_mic_24px",
+                    "FakeCamPlugin": "ic_video_24px",
+                    "ScreenRecordPlugin": "ic_videocam_24px",
+                    "ExamplePlugin": "ic_info_24px"
+                };
+                manifest.vendetta = manifest.vendetta || {};
+                manifest.vendetta.icon = icons[plugin] || "ic_info_24px";
+
                 // Compute and set hash
                 const newHash = calculateSHA256(rootFile);
                 manifest.hash = newHash;
