@@ -66,7 +66,7 @@ id                    gBridge        = nil;
     else
     {
         bundleUrl = [NSURL
-            URLWithString:@"https://codeberg.org/cocobo1/Brooki/raw/branch/dist/brooki.min.js"];
+            URLWithString:@"https://raw.githubusercontent.com/boop809/Brooki/main/dist/brooki.js"];
         BunnyLog(@"Using default bundle URL: %@", bundleUrl.absoluteString);
     }
 
