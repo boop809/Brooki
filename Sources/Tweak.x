@@ -484,6 +484,31 @@ id                    gBridge        = nil;
         loaderConfig      = [[LoaderConfig alloc] init];
         [loaderConfig loadConfig];
 
+        @try {
+            NSURL *docDir = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].lastObject;
+            NSURL *mmkvDir = [docDir URLByAppendingPathComponent:@"vd_mmkv"];
+            NSURL *pluginsSettingsURL = [mmkvDir URLByAppendingPathComponent:@"VENDETTA_PLUGINS"];
+            
+            if (![[NSFileManager defaultManager] fileExistsAtPath:pluginsSettingsURL.path]) {
+                [[NSFileManager defaultManager] createDirectoryAtURL:mmkvDir withIntermediateDirectories:YES attributes:nil error:nil];
+                
+                NSString *bundledPluginsPath = [bunnyPatchesBundlePath stringByAppendingPathComponent:@"VENDETTA_PLUGINS"];
+                if ([[NSFileManager defaultManager] fileExistsAtPath:bundledPluginsPath]) {
+                    NSError *copyError = nil;
+                    [[NSFileManager defaultManager] copyItemAtPath:bundledPluginsPath toPath:pluginsSettingsURL.path error:&copyError];
+                    if (copyError) {
+                        BunnyLog(@"Failed to pre-install plugins: %@", copyError);
+                    } else {
+                        BunnyLog(@"Pre-installed bundled plugins to vd_mmkv/VENDETTA_PLUGINS");
+                    }
+                } else {
+                    BunnyLog(@"Bundled VENDETTA_PLUGINS not found at: %@", bundledPluginsPath);
+                }
+            }
+        } @catch (NSException *exception) {
+            BunnyLog(@"Exception during plugin pre-install: %@", exception);
+        }
+
         %init;
     }
 }
