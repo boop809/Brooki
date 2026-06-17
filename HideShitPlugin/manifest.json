@@ -1,7 +1,11 @@
 {
     "name": "HideShit Pro",
     "description": "Hide all Brooki settings and plugins. Type /hide to conceal and /show to restore.",
-    "author": "brooki",
     "main": "index.js",
-    "hash": "1.0.0"
+    "hash": "f8a7eb98d41627fb2f68a70502a0f03bda75f618b53296ee01a5278c49ff5489",
+    "authors": [
+        {
+            "name": "brooki"
+        }
+    ]
 }

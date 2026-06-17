@@ -1,7 +1,11 @@
 {
     "name": "Brooki Example Plugin",
     "description": "A simple example plugin for Brooki/Pyoncord that changes :shrug: to ¯\\_(ツ)_/¯ and adds a /ping command.",
-    "author": "cocobo1",
     "main": "index.js",
-    "hash": "1.0.0"
+    "hash": "292dabb29d177f2513f62134b16b6889809171b5fe55de6f5a7dd9d657f90e49",
+    "authors": [
+        {
+            "name": "cocobo1"
+        }
+    ]
 }
