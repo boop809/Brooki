@@ -234,11 +234,12 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ env.IS_PRERELEASE }}
           fail_on_unmatched_files: true
-          token: ${{ env.GITHUB_TOKEN }}
+          token: ${{ github.token }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Repository
+        if: ${{ secrets.WORKFLOW_DISPATCH_TOKEN != '' }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.WORKFLOW_DISPATCH_TOKEN }}
