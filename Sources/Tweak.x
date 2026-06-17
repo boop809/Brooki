@@ -1,6 +1,9 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
+#import <CoreVideo/CoreVideo.h>
+#import <CoreMedia/CoreMedia.h>
+#import <AudioToolbox/AudioToolbox.h>
 
 #import "Fonts.h"
 #import "LoaderConfig.h"
@@ -259,111 +262,481 @@ id                    gBridge        = nil;
 
 %end
 
-%hook AVAudioSession
+static CVPixelBufferRef gFakeCamPixelBuffer = NULL;
+static NSString *gFakeCamCurrentImageURL = nil;
 
-- (BOOL)setCategory:(NSString *)category error:(NSError **)outError
-{
-    BOOL screenRecordBypass = NO;
+static void updateFakeCamImage(NSString *urlString) {
+    if (!urlString || urlString.length == 0) return;
+    if ([urlString isEqualToString:gFakeCamCurrentImageURL] && gFakeCamPixelBuffer != NULL) return;
+    
+    @try {
+        NSURL *url = [NSURL URLWithString:urlString];
+        if ([urlString hasPrefix:@"/"] || [urlString hasPrefix:@"file:"]) {
+            url = [NSURL fileURLWithPath:[urlString stringByReplacingOccurrencesOfString:@"file://" withString:@""]];
+        }
+        
+        NSData *data = [NSData dataWithContentsOfURL:url];
+        if (!data) return;
+        
+        UIImage *image = [UIImage imageWithData:data];
+        if (!image) return;
+        
+        if (gFakeCamPixelBuffer != NULL) {
+            CVPixelBufferRelease(gFakeCamPixelBuffer);
+            gFakeCamPixelBuffer = NULL;
+        }
+        
+        CGImageRef cgImage = image.CGImage;
+        NSDictionary *options = @{
+            (id)kCVPixelBufferCGImageCompatibilityKey: @YES,
+            (id)kCVPixelBufferCGBitmapContextCompatibilityKey: @YES
+        };
+        
+        size_t width = CGImageGetWidth(cgImage);
+        size_t height = CGImageGetHeight(cgImage);
+        
+        CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, (__bridge CFDictionaryRef)options, &gFakeCamPixelBuffer);
+        
+        CVPixelBufferLockBaseAddress(gFakeCamPixelBuffer, 0);
+        void *pxdata = CVPixelBufferGetBaseAddress(gFakeCamPixelBuffer);
+        
+        CGColorSpaceRef rgbColorSpace = CGColorSpaceCreateDeviceRGB();
+        CGContextRef context = CGBitmapContextCreate(pxdata, width, height, 8, CVPixelBufferGetBytesPerRow(gFakeCamPixelBuffer), rgbColorSpace, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
+        
+        CGContextDrawImage(context, CGRectMake(0, 0, width, height), cgImage);
+        
+        CGColorSpaceRelease(rgbColorSpace);
+        CGContextRelease(context);
+        
+        CVPixelBufferUnlockBaseAddress(gFakeCamPixelBuffer, 0);
+        
+        gFakeCamCurrentImageURL = urlString;
+    } @catch (NSException *e) {
+        BunnyLog(@"Error loading FakeCam image: %@", e);
+    }
+}
+
+static CMSampleBufferRef createSampleBufferFromPixelBuffer(CVPixelBufferRef pixelBuffer, CMSampleBufferRef originalSampleBuffer) {
+    CMSampleBufferRef newSampleBuffer = NULL;
+    CMSampleTimingInfo timingInfo;
+    
+    OSStatus status = CMSampleBufferGetSampleTimingInfo(originalSampleBuffer, 0, &timingInfo);
+    if (status != noErr) return NULL;
+    
+    CMVideoFormatDescriptionRef formatDescription = NULL;
+    status = CMVideoFormatDescriptionCreateForImageBuffer(kCFAllocatorDefault, pixelBuffer, &formatDescription);
+    if (status != noErr) return NULL;
+    
+    status = CMSampleBufferCreateForImageBuffer(kCFAllocatorDefault, pixelBuffer, YES, NULL, NULL, formatDescription, &timingInfo, &newSampleBuffer);
+    
+    CFRelease(formatDescription);
+    
+    if (status != noErr) return NULL;
+    return newSampleBuffer;
+}
+
+%hook RTCCameraVideoCapturer
+
+- (void)captureOutput:(AVCaptureOutput *)output didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection {
+    BOOL fakeCamEnabled = NO;
+    NSString *fakeCamURL = nil;
     @try {
         NSURL *docDir = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].lastObject;
-        NSURL *settingsURL = [docDir URLByAppendingPathComponent:@"vd_mmkv/VENDETTA_SETTINGS"];
-        NSData *data = [NSData dataWithContentsOfURL:settingsURL];
-        if (data) {
-            NSDictionary *settings = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-            if ([[settings objectForKey:@"screenRecordBypass"] boolValue]) {
-                screenRecordBypass = YES;
-            }
-            NSDictionary *plugins = settings[@"plugins"];
-            if (plugins) {
-                for (NSString *key in plugins) {
-                    if ([key containsString:@"recaudio"] || [key containsString:@"screenrecord"]) {
-                        NSDictionary *plStorage = plugins[key];
-                        if ([[plStorage objectForKey:@"enabled"] boolValue]) {
-                            screenRecordBypass = YES;
+        NSURL *mmkvDir = [docDir URLByAppendingPathComponent:@"vd_mmkv"];
+        
+        NSFileManager *fm = [NSFileManager defaultManager];
+        if ([fm fileExistsAtPath:mmkvDir.path]) {
+            NSArray *files = [fm contentsOfDirectoryAtURL:mmkvDir includingPropertiesForKeys:nil options:0 error:nil];
+            for (NSURL *fileURL in files) {
+                NSString *filename = fileURL.lastPathComponent;
+                if ([filename.lowercaseString containsString:@"fakecam"]) {
+                    NSData *data = [NSData dataWithContentsOfURL:fileURL];
+                    if (data) {
+                        NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+                        if ([dict isKindOfClass:[NSDictionary class]]) {
+                            NSDictionary *fcDict = dict[@"fakeCam"];
+                            if (fcDict) {
+                                fakeCamEnabled = [[fcDict objectForKey:@"enabled"] boolValue];
+                                fakeCamURL = [fcDict objectForKey:@"imageUrl"];
+                                break;
+                            }
                         }
                     }
                 }
             }
         }
-    } @catch (NSException *exception) {
-        BunnyLog(@"Error reading settings in Tweak: %@", exception);
+        
+        if (!fakeCamEnabled) {
+            NSURL *settingsURL = [mmkvDir URLByAppendingPathComponent:@"VENDETTA_SETTINGS"];
+            NSData *data = [NSData dataWithContentsOfURL:settingsURL];
+            if (data) {
+                NSDictionary *settings = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+                NSDictionary *plugins = settings[@"plugins"];
+                if (plugins) {
+                    for (NSString *key in plugins) {
+                        if ([key.lowercaseString containsString:@"fakecam"]) {
+                            NSDictionary *plStorage = plugins[key];
+                            NSDictionary *fcDict = plStorage[@"fakeCam"];
+                            if (fcDict) {
+                                fakeCamEnabled = [[fcDict objectForKey:@"enabled"] boolValue];
+                                fakeCamURL = [fcDict objectForKey:@"imageUrl"];
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } @catch (NSException *e) {
+        BunnyLog(@"Error loading FakeCam settings: %@", e);
     }
+    
+    if (fakeCamEnabled && fakeCamURL && fakeCamURL.length > 0) {
+        static dispatch_queue_t fakeCamQueue = nil;
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            fakeCamQueue = dispatch_queue_create("com.brooki.fakecam", DISPATCH_QUEUE_SERIAL);
+        });
+        
+        dispatch_async(fakeCamQueue, ^{
+            updateFakeCamImage(fakeCamURL);
+        });
+        
+        if (gFakeCamPixelBuffer != NULL) {
+            CMSampleBufferRef fakeSampleBuffer = createSampleBufferFromPixelBuffer(gFakeCamPixelBuffer, sampleBuffer);
+            if (fakeSampleBuffer != NULL) {
+                %orig(output, fakeSampleBuffer, connection);
+                CFRelease(fakeSampleBuffer);
+                return;
+            }
+        }
+    }
+    
+    %orig(output, sampleBuffer, connection);
+}
 
+%end
+
+// Screen recording & recaudio settings check helper
+static BOOL isScreenRecordBypassEnabled(void) {
+    @try {
+        NSURL *docDir = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].lastObject;
+        NSURL *mmkvDir = [docDir URLByAppendingPathComponent:@"vd_mmkv"];
+        
+        // 1. Check separate plugin store files
+        NSFileManager *fm = [NSFileManager defaultManager];
+        if ([fm fileExistsAtPath:mmkvDir.path]) {
+            NSArray *files = [fm contentsOfDirectoryAtURL:mmkvDir includingPropertiesForKeys:nil options:0 error:nil];
+            for (NSURL *fileURL in files) {
+                NSString *filename = fileURL.lastPathComponent;
+                if ([filename.lowercaseString containsString:@"screenrecord"] || [filename.lowercaseString containsString:@"recaudio"]) {
+                    NSData *data = [NSData dataWithContentsOfURL:fileURL];
+                    if (data) {
+                        NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+                        if ([dict isKindOfClass:[NSDictionary class]]) {
+                            NSDictionary *raDict = dict[@"recAudio"];
+                            if (raDict) {
+                                return [[raDict objectForKey:@"enabled"] boolValue];
+                            }
+                            if ([[dict objectForKey:@"enabled"] boolValue]) {
+                                return YES;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 2. Check inside VENDETTA_SETTINGS
+        NSURL *settingsURL = [mmkvDir URLByAppendingPathComponent:@"VENDETTA_SETTINGS"];
+        NSData *data = [NSData dataWithContentsOfURL:settingsURL];
+        if (data) {
+            NSDictionary *settings = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if ([[settings objectForKey:@"screenRecordBypass"] boolValue]) {
+                return YES;
+            }
+            NSDictionary *plugins = settings[@"plugins"];
+            if (plugins) {
+                for (NSString *key in plugins) {
+                    if ([key.lowercaseString containsString:@"screenrecord"] || [key.lowercaseString containsString:@"recaudio"]) {
+                        NSDictionary *plStorage = plugins[key];
+                        NSDictionary *raDict = plStorage[@"recAudio"];
+                        if (raDict && [[raDict objectForKey:@"enabled"] boolValue]) {
+                            return YES;
+                        }
+                        if ([[plStorage objectForKey:@"enabled"] boolValue]) {
+                            return YES;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 3. Check inside VENDETTA_PLUGINS
+        NSURL *pluginsURL = [mmkvDir URLByAppendingPathComponent:@"VENDETTA_PLUGINS"];
+        NSData *pluginsData = [NSData dataWithContentsOfURL:pluginsURL];
+        if (pluginsData) {
+            NSDictionary *plugins = [NSJSONSerialization JSONObjectWithData:pluginsData options:0 error:nil];
+            if ([plugins isKindOfClass:[NSDictionary class]]) {
+                for (NSString *key in plugins) {
+                    if ([key.lowercaseString containsString:@"screenrecord"] || [key.lowercaseString containsString:@"recaudio"]) {
+                        NSDictionary *entry = plugins[key];
+                        if ([entry isKindOfClass:[NSDictionary class]] && [[entry objectForKey:@"enabled"] boolValue]) {
+                            return YES;
+                        }
+                    }
+                }
+            }
+        }
+    } @catch (NSException *e) {
+        BunnyLog(@"Error checking screen record bypass: %@", e);
+    }
+    return NO;
+}
+
+// Voice Changer settings and state variables
+static BOOL gVoiceChangerEnabled = NO;
+static float gVoiceChangerPitch = 0.0f;
+static float gVoiceChangerEcho = 0.0f;
+static float gVoiceChangerReverb = 0.0f;
+
+static void updateVoiceChangerSettings(void) {
+    gVoiceChangerEnabled = NO;
+    gVoiceChangerPitch = 0.0f;
+    gVoiceChangerEcho = 0.0f;
+    gVoiceChangerReverb = 0.0f;
+    
+    @try {
+        NSURL *docDir = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].lastObject;
+        NSURL *mmkvDir = [docDir URLByAppendingPathComponent:@"vd_mmkv"];
+        
+        // 1. Check separate plugin store files
+        NSFileManager *fm = [NSFileManager defaultManager];
+        if ([fm fileExistsAtPath:mmkvDir.path]) {
+            NSArray *files = [fm contentsOfDirectoryAtURL:mmkvDir includingPropertiesForKeys:nil options:0 error:nil];
+            for (NSURL *fileURL in files) {
+                NSString *filename = fileURL.lastPathComponent;
+                if ([filename.lowercaseString containsString:@"voicechanger"]) {
+                    NSData *data = [NSData dataWithContentsOfURL:fileURL];
+                    if (data) {
+                        NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+                        if ([dict isKindOfClass:[NSDictionary class]]) {
+                            NSDictionary *vcDict = dict[@"voiceChanger"];
+                            if (vcDict) {
+                                gVoiceChangerEnabled = [[vcDict objectForKey:@"enabled"] boolValue];
+                                gVoiceChangerPitch = [[vcDict objectForKey:@"pitch"] floatValue];
+                                gVoiceChangerEcho = [[vcDict objectForKey:@"echo"] floatValue];
+                                gVoiceChangerReverb = [[vcDict objectForKey:@"reverb"] floatValue];
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 2. Check inside VENDETTA_SETTINGS
+        NSURL *settingsURL = [mmkvDir URLByAppendingPathComponent:@"VENDETTA_SETTINGS"];
+        NSData *data = [NSData dataWithContentsOfURL:settingsURL];
+        if (data) {
+            NSDictionary *settings = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            NSDictionary *plugins = settings[@"plugins"];
+            if (plugins) {
+                for (NSString *key in plugins) {
+                    if ([key.lowercaseString containsString:@"voicechanger"]) {
+                        NSDictionary *plStorage = plugins[key];
+                        NSDictionary *vcDict = plStorage[@"voiceChanger"];
+                        if (vcDict) {
+                            gVoiceChangerEnabled = [[vcDict objectForKey:@"enabled"] boolValue];
+                            gVoiceChangerPitch = [[vcDict objectForKey:@"pitch"] floatValue];
+                            gVoiceChangerEcho = [[vcDict objectForKey:@"echo"] floatValue];
+                            gVoiceChangerReverb = [[vcDict objectForKey:@"reverb"] floatValue];
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    } @catch (NSException *e) {
+        BunnyLog(@"Error updating Voice Changer settings: %@", e);
+    }
+}
+
+// DSP functions for Voice Changer
+static float pitchShiftSample(float inputSample, float semitones) {
+    if (semitones == 0.0f) return inputSample;
+    
+    float ratio = powf(2.0f, semitones / 12.0f);
+    
+    #define BUF_SIZE 8192
+    #define WINDOW_SIZE 2048
+    
+    static float buffer[BUF_SIZE] = {0};
+    static int writePos = 0;
+    static float delay1 = 100.0f;
+    static float delay2 = 100.0f + (WINDOW_SIZE / 2);
+    
+    buffer[writePos] = inputSample;
+    
+    float readIdx1 = (float)writePos - delay1;
+    while (readIdx1 < 0) readIdx1 += BUF_SIZE;
+    while (readIdx1 >= BUF_SIZE) readIdx1 -= BUF_SIZE;
+    
+    float readIdx2 = (float)writePos - delay2;
+    while (readIdx2 < 0) readIdx2 += BUF_SIZE;
+    while (readIdx2 >= BUF_SIZE) readIdx2 -= BUF_SIZE;
+    
+    int idx1 = (int)readIdx1;
+    int next1 = (idx1 + 1) % BUF_SIZE;
+    float frac1 = readIdx1 - idx1;
+    float sample1 = (1.0f - frac1) * buffer[idx1] + frac1 * buffer[next1];
+    
+    int idx2 = (int)readIdx2;
+    int next2 = (idx2 + 1) % BUF_SIZE;
+    float frac2 = readIdx2 - idx2;
+    float sample2 = (1.0f - frac2) * buffer[idx2] + frac2 * buffer[next2];
+    
+    float weight = (delay1 - 100.0f) / (float)WINDOW_SIZE;
+    if (weight < 0.0f) weight = 0.0f;
+    if (weight > 1.0f) weight = 1.0f;
+    
+    float outputSample = (1.0f - weight) * sample1 + weight * sample2;
+    
+    writePos = (writePos + 1) % BUF_SIZE;
+    
+    delay1 += (1.0f - ratio);
+    delay2 += (1.0f - ratio);
+    
+    float minDelay = 100.0f;
+    float maxDelay = 100.0f + WINDOW_SIZE;
+    
+    if (delay1 >= maxDelay) delay1 -= WINDOW_SIZE;
+    if (delay1 < minDelay) delay1 += WINDOW_SIZE;
+    
+    if (delay2 >= maxDelay) delay2 -= WINDOW_SIZE;
+    if (delay2 < minDelay) delay2 += WINDOW_SIZE;
+    
+    return outputSample;
+}
+
+static float applyEcho(float inputSample, float feedback) {
+    if (feedback <= 0.0f) return inputSample;
+    float fbValue = feedback / 100.0f;
+    if (fbValue > 0.85f) fbValue = 0.85f;
+    
+    #define ECHO_BUF_SIZE 24000
+    static float echoBuffer[ECHO_BUF_SIZE] = {0};
+    static int echoWritePos = 0;
+    
+    int delaySamples = 12000;
+    int echoReadPos = (echoWritePos - delaySamples + ECHO_BUF_SIZE) % ECHO_BUF_SIZE;
+    
+    float echoSample = echoBuffer[echoReadPos];
+    float outputSample = inputSample + echoSample * fbValue;
+    
+    echoBuffer[echoWritePos] = inputSample + echoSample * fbValue * 0.5f;
+    echoWritePos = (echoWritePos + 1) % ECHO_BUF_SIZE;
+    
+    return outputSample;
+}
+
+static float applyReverb(float inputSample, float level) {
+    if (level <= 0.0f) return inputSample;
+    float wet = level / 100.0f;
+    if (wet > 0.8f) wet = 0.8f;
+    
+    #define REV_BUF_SIZE 8192
+    static float revBuffer[REV_BUF_SIZE] = {0};
+    static int revWritePos = 0;
+    
+    int tap1 = (revWritePos - 1200 + REV_BUF_SIZE) % REV_BUF_SIZE;
+    int tap2 = (revWritePos - 2700 + REV_BUF_SIZE) % REV_BUF_SIZE;
+    int tap3 = (revWritePos - 4300 + REV_BUF_SIZE) % REV_BUF_SIZE;
+    
+    float revSample = (revBuffer[tap1] * 0.4f + revBuffer[tap2] * 0.3f + revBuffer[tap3] * 0.2f);
+    float outputSample = (1.0f - wet) * inputSample + wet * revSample;
+    
+    revBuffer[revWritePos] = inputSample + revSample * 0.4f;
+    revWritePos = (revWritePos + 1) % REV_BUF_SIZE;
+    
+    return outputSample;
+}
+
+static void processAudioBuffer(int16_t *samples, UInt32 numFrames) {
+    updateVoiceChangerSettings();
+    if (!gVoiceChangerEnabled) return;
+    
+    for (UInt32 i = 0; i < numFrames; i++) {
+        float floatSample = (float)samples[i] / 32768.0f;
+        
+        floatSample = pitchShiftSample(floatSample, gVoiceChangerPitch);
+        floatSample = applyEcho(floatSample, gVoiceChangerEcho);
+        floatSample = applyReverb(floatSample, gVoiceChangerReverb);
+        
+        if (floatSample > 1.0f) floatSample = 1.0f;
+        else if (floatSample < -1.0f) floatSample = -1.0f;
+        
+        samples[i] = (int16_t)(floatSample * 32767.0f);
+    }
+}
+
+// Hook AudioUnitRender to capture microphone input
+%hookf(OSStatus, AudioUnitRender, AudioUnit inUnit, AudioUnitRenderActionFlags *ioActionFlags, const AudioTimeStamp *inTimeStamp, UInt32 inBusNumber, UInt32 inNumberFrames, AudioBufferList *ioData) {
+    OSStatus status = %orig(inUnit, ioActionFlags, inTimeStamp, inBusNumber, inNumberFrames, ioData);
+    if (status == noErr && ioData != NULL && inBusNumber == 1) {
+        for (UInt32 i = 0; i < ioData->mNumberBuffers; i++) {
+            AudioBuffer *buffer = &ioData->mBuffers[i];
+            if (buffer->mData != NULL && buffer->mDataByteSize > 0) {
+                int16_t *samples = (int16_t *)buffer->mData;
+                UInt32 numSamples = buffer->mDataByteSize / sizeof(int16_t);
+                processAudioBuffer(samples, numSamples);
+            }
+        }
+    }
+    return status;
+}
+
+%hook AVAudioSession
+
+- (BOOL)setCategory:(NSString *)category error:(NSError **)outError
+{
+    BOOL screenRecordBypass = isScreenRecordBypassEnabled();
     if (screenRecordBypass && [category isEqualToString:@"AVAudioSessionCategoryPlayAndRecord"])
     {
-        return [self setCategory:category withOptions:3 error:outError]; // MixWithOthers (1) | DefaultToSpeaker (2)
+        NSUInteger options = AVAudioSessionCategoryOptionMixWithOthers |
+                             AVAudioSessionCategoryOptionDefaultToSpeaker |
+                             AVAudioSessionCategoryOptionAllowBluetooth |
+                             AVAudioSessionCategoryOptionAllowBluetoothA2DP |
+                             AVAudioSessionCategoryOptionAllowAirPlay;
+        return [self setCategory:category withOptions:options error:outError];
     }
     return %orig;
 }
 
 - (BOOL)setCategory:(NSString *)category withOptions:(NSUInteger)options error:(NSError **)outError
 {
-    BOOL screenRecordBypass = NO;
-    @try {
-        NSURL *docDir = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].lastObject;
-        NSURL *settingsURL = [docDir URLByAppendingPathComponent:@"vd_mmkv/VENDETTA_SETTINGS"];
-        NSData *data = [NSData dataWithContentsOfURL:settingsURL];
-        if (data) {
-            NSDictionary *settings = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-            if ([[settings objectForKey:@"screenRecordBypass"] boolValue]) {
-                screenRecordBypass = YES;
-            }
-            NSDictionary *plugins = settings[@"plugins"];
-            if (plugins) {
-                for (NSString *key in plugins) {
-                    if ([key containsString:@"recaudio"] || [key containsString:@"screenrecord"]) {
-                        NSDictionary *plStorage = plugins[key];
-                        if ([[plStorage objectForKey:@"enabled"] boolValue]) {
-                            screenRecordBypass = YES;
-                        }
-                    }
-                }
-            }
-        }
-    } @catch (NSException *exception) {
-        BunnyLog(@"Error reading settings in Tweak: %@", exception);
-    }
-
+    BOOL screenRecordBypass = isScreenRecordBypassEnabled();
     if (screenRecordBypass && [category isEqualToString:@"AVAudioSessionCategoryPlayAndRecord"])
     {
-        options |= 1; // AVAudioSessionCategoryOptionMixWithOthers
-        options |= 2; // AVAudioSessionCategoryOptionDefaultToSpeaker
+        options |= AVAudioSessionCategoryOptionMixWithOthers;
+        options |= AVAudioSessionCategoryOptionDefaultToSpeaker;
+        options |= AVAudioSessionCategoryOptionAllowBluetooth;
+        options |= AVAudioSessionCategoryOptionAllowBluetoothA2DP;
+        options |= AVAudioSessionCategoryOptionAllowAirPlay;
     }
     return %orig(category, options, outError);
 }
 
 - (BOOL)setCategory:(NSString *)category mode:(NSString *)mode options:(NSUInteger)options error:(NSError **)outError
 {
-    BOOL screenRecordBypass = NO;
-    @try {
-        NSURL *docDir = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].lastObject;
-        NSURL *settingsURL = [docDir URLByAppendingPathComponent:@"vd_mmkv/VENDETTA_SETTINGS"];
-        NSData *data = [NSData dataWithContentsOfURL:settingsURL];
-        if (data) {
-            NSDictionary *settings = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-            if ([[settings objectForKey:@"screenRecordBypass"] boolValue]) {
-                screenRecordBypass = YES;
-            }
-            NSDictionary *plugins = settings[@"plugins"];
-            if (plugins) {
-                for (NSString *key in plugins) {
-                    if ([key containsString:@"recaudio"] || [key containsString:@"screenrecord"]) {
-                        NSDictionary *plStorage = plugins[key];
-                        if ([[plStorage objectForKey:@"enabled"] boolValue]) {
-                            screenRecordBypass = YES;
-                        }
-                    }
-                }
-            }
-        }
-    } @catch (NSException *exception) {
-        BunnyLog(@"Error reading settings in Tweak: %@", exception);
-    }
-
+    BOOL screenRecordBypass = isScreenRecordBypassEnabled();
     if (screenRecordBypass && [category isEqualToString:@"AVAudioSessionCategoryPlayAndRecord"])
     {
-        options |= 1; // AVAudioSessionCategoryOptionMixWithOthers
-        options |= 2; // AVAudioSessionCategoryOptionDefaultToSpeaker
+        options |= AVAudioSessionCategoryOptionMixWithOthers;
+        options |= AVAudioSessionCategoryOptionDefaultToSpeaker;
+        options |= AVAudioSessionCategoryOptionAllowBluetooth;
+        options |= AVAudioSessionCategoryOptionAllowBluetoothA2DP;
+        options |= AVAudioSessionCategoryOptionAllowAirPlay;
     }
     return %orig(category, mode, options, outError);
 }
@@ -489,24 +862,48 @@ id                    gBridge        = nil;
             NSURL *mmkvDir = [docDir URLByAppendingPathComponent:@"vd_mmkv"];
             NSURL *pluginsSettingsURL = [mmkvDir URLByAppendingPathComponent:@"VENDETTA_PLUGINS"];
             
-            if (![[NSFileManager defaultManager] fileExistsAtPath:pluginsSettingsURL.path]) {
-                [[NSFileManager defaultManager] createDirectoryAtURL:mmkvDir withIntermediateDirectories:YES attributes:nil error:nil];
-                
-                NSString *bundledPluginsPath = [bunnyPatchesBundlePath stringByAppendingPathComponent:@"VENDETTA_PLUGINS"];
-                if ([[NSFileManager defaultManager] fileExistsAtPath:bundledPluginsPath]) {
-                    NSError *copyError = nil;
-                    [[NSFileManager defaultManager] copyItemAtPath:bundledPluginsPath toPath:pluginsSettingsURL.path error:&copyError];
-                    if (copyError) {
-                        BunnyLog(@"Failed to pre-install plugins: %@", copyError);
-                    } else {
-                        BunnyLog(@"Pre-installed bundled plugins to vd_mmkv/VENDETTA_PLUGINS");
+            NSString *bundledPluginsPath = [bunnyPatchesBundlePath stringByAppendingPathComponent:@"VENDETTA_PLUGINS"];
+            if ([[NSFileManager defaultManager] fileExistsAtPath:bundledPluginsPath]) {
+                NSData *bundledData = [NSData dataWithContentsOfFile:bundledPluginsPath];
+                if (bundledData) {
+                    NSDictionary *bundledDict = [NSJSONSerialization JSONObjectWithData:bundledData options:0 error:nil];
+                    if (bundledDict && [bundledDict isKindOfClass:[NSDictionary class]]) {
+                        NSMutableDictionary *mergedDict = [NSMutableDictionary dictionary];
+                        
+                        if ([[NSFileManager defaultManager] fileExistsAtPath:pluginsSettingsURL.path]) {
+                            NSData *existingData = [NSData dataWithContentsOfURL:pluginsSettingsURL];
+                            if (existingData) {
+                                NSDictionary *existingDict = [NSJSONSerialization JSONObjectWithData:existingData options:0 error:nil];
+                                if (existingDict && [existingDict isKindOfClass:[NSDictionary class]]) {
+                                    [mergedDict addEntriesFromDictionary:existingDict];
+                                }
+                            }
+                        }
+                        
+                        for (NSString *key in bundledDict) {
+                            NSDictionary *bundledPlugin = bundledDict[key];
+                            NSDictionary *existingPlugin = mergedDict[key];
+                            
+                            NSMutableDictionary *newPlugin = [bundledPlugin mutableCopy];
+                            if (existingPlugin) {
+                                newPlugin[@"enabled"] = existingPlugin[@"enabled"];
+                            }
+                            mergedDict[key] = newPlugin;
+                        }
+                        
+                        [[NSFileManager defaultManager] createDirectoryAtURL:mmkvDir withIntermediateDirectories:YES attributes:nil error:nil];
+                        NSData *mergedData = [NSJSONSerialization dataWithJSONObject:mergedDict options:NSJSONWritingPrettyPrinted error:nil];
+                        if (mergedData) {
+                            [mergedData writeToURL:pluginsSettingsURL atomically:YES];
+                            BunnyLog(@"Successfully updated and merged bundled plugins in vd_mmkv/VENDETTA_PLUGINS");
+                        }
                     }
-                } else {
-                    BunnyLog(@"Bundled VENDETTA_PLUGINS not found at: %@", bundledPluginsPath);
                 }
+            } else {
+                BunnyLog(@"Bundled VENDETTA_PLUGINS not found at: %@", bundledPluginsPath);
             }
         } @catch (NSException *exception) {
-            BunnyLog(@"Exception during plugin pre-install: %@", exception);
+            BunnyLog(@"Exception during plugin merge: %@", exception);
         }
 
         %init;
