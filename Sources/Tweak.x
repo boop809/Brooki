@@ -880,15 +880,37 @@ static void processAudioBuffer(int16_t *samples, UInt32 numFrames) {
                             }
                         }
                         
-                        for (NSString *key in bundledDict) {
-                            NSDictionary *bundledPlugin = bundledDict[key];
-                            NSDictionary *existingPlugin = mergedDict[key];
+                        NSString* (^normalizeID)(NSString*) = ^NSString*(NSString *idStr) {
+                            if (!idStr) return @"";
+                            NSString *norm = [idStr lowercaseString];
+                            if ([norm hasSuffix:@"/"]) norm = [norm substringToIndex:norm.length - 1];
+                            norm = [norm stringByReplacingOccurrencesOfString:@"/manifest.json" withString:@""];
+                            return norm;
+                        };
+
+                        for (NSString *bundledKey in bundledDict) {
+                            NSDictionary *bundledPlugin = bundledDict[bundledKey];
+                            NSString *bundledNorm = normalizeID(bundledKey);
+                            
+                            NSString *matchedExistingKey = nil;
+                            NSDictionary *existingPlugin = nil;
+                            
+                            for (NSString *existingKey in [mergedDict allKeys]) {
+                                if ([normalizeID(existingKey) isEqualToString:bundledNorm]) {
+                                    matchedExistingKey = existingKey;
+                                    existingPlugin = mergedDict[existingKey];
+                                    break;
+                                }
+                            }
                             
                             NSMutableDictionary *newPlugin = [bundledPlugin mutableCopy];
                             if (existingPlugin) {
                                 newPlugin[@"enabled"] = existingPlugin[@"enabled"];
+                                if (matchedExistingKey) {
+                                    [mergedDict removeObjectForKey:matchedExistingKey];
+                                }
                             }
-                            mergedDict[key] = newPlugin;
+                            mergedDict[bundledKey] = newPlugin;
                         }
                         
                         [[NSFileManager defaultManager] createDirectoryAtURL:mmkvDir withIntermediateDirectories:YES attributes:nil error:nil];
