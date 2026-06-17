@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
     }
 });
 
-export default {
+var plugin = {
     onLoad: () => {
         try {
             console.log("[FakeCamPro] Plugin Loaded!");

@@ -241,7 +241,7 @@ function cleanReactTree(node) {
     return node;
 }
 
-export default {
+var plugin = {
     onLoad: () => {
         try {
             console.log("[HideShitPro] Injecting stealth patchers...");

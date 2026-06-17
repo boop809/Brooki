@@ -8,7 +8,7 @@ const { metro, patcher, commands } = modApi;
 // We will store our unpatch functions here to clean up when unloading
 const unpatches = [];
 
-export default {
+var plugin = {
     onLoad: () => {
         try {
             console.log("[BrookiPlugin] Loading Example Plugin...");

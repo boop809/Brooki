@@ -991,7 +991,7 @@ const styles = StyleSheet.create({
 // Patches Registry
 let patches = [];
 
-export default {
+var plugin = {
     onLoad: () => {
         try {
             console.log("[EditUsersPro] Injecting client spoof hooks...");
