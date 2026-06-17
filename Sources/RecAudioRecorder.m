@@ -46,8 +46,8 @@ extern void RCTRegisterModule(Class);
 // 1. Export startRecording method
 + (const RCTMethodInfo *)__rct_export__startRecording {
     static RCTMethodInfo config = {
-        "startRecording",
-        "startRecording:rejecter:",
+        "",
+        "startRecording:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject",
         NO
     };
     return &config;
@@ -106,8 +106,8 @@ extern void RCTRegisterModule(Class);
 // 2. Export stopRecording method
 + (const RCTMethodInfo *)__rct_export__stopRecording {
     static RCTMethodInfo config = {
-        "stopRecording",
-        "stopRecording:rejecter:",
+        "",
+        "stopRecording:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject",
         NO
     };
     return &config;
@@ -172,8 +172,8 @@ extern void RCTRegisterModule(Class);
 // 3. Export isRecording method
 + (const RCTMethodInfo *)__rct_export__isRecording {
     static RCTMethodInfo config = {
-        "isRecording",
-        "isRecording:rejecter:",
+        "",
+        "isRecording:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject",
         NO
     };
     return &config;
