@@ -1,7 +1,7 @@
 // HideShit Pro - Brooki/Pyoncord Plugin
 // Hide the Brooki settings and plugin entries from the Discord client UI.
 
-const modApi = globalThis.bunny || globalThis.vendetta;
+const modApi = (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.bunny || window.vendetta));
 const { metro, patcher, storage, commands } = modApi;
 
 // Retrieve standard React and React Native components

@@ -1,7 +1,7 @@
 // EditUsers Pro - Brooki/Pyoncord Plugin
 // Premium mobile port of Vencord's EditUsers. Customizes everything client-side.
 
-const modApi = globalThis.bunny || globalThis.vendetta;
+const modApi = (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.bunny || window.vendetta));
 const { metro, patcher, storage } = modApi;
 
 // Retrieve standard React and React Native components

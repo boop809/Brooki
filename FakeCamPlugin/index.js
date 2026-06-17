@@ -1,7 +1,7 @@
 // FakeCam Pro - Brooki/Pyoncord Plugin
 // Inject custom image feeds into Discord camera stream with a premium monitoring UI.
 
-const modApi = globalThis.bunny || globalThis.vendetta;
+const modApi = (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.bunny || window.vendetta));
 const { metro, storage } = modApi;
 
 // Retrieve standard React and React Native components

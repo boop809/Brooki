@@ -2,7 +2,7 @@
 // This script intercepts outgoing messages and adds a custom command.
 
 // Safely get the API of the mod loader (works for Bunny, Pyoncord, or Vendetta)
-const modApi = globalThis.bunny || globalThis.vendetta;
+const modApi = (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.bunny || window.vendetta));
 const { metro, patcher, commands } = modApi;
 
 // We will store our unpatch functions here to clean up when unloading
