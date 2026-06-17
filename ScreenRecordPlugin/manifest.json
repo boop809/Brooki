@@ -2,7 +2,7 @@
     "name": "RecAudio Pro",
     "description": "Bypasses iOS recording blocks on VoIP audio. Record Discord voice calls directly through the system screen recorder with full voice output.",
     "main": "index.js",
-    "hash": "4bc43f2684a4ccacbc3eb022c28eaabaaa62ff87ac5fba7a9c820ce0519b2772",
+    "hash": "faa48776778af3b7b0ec159e50be09db556536e3535f86a5fbacd5a23b757b1f",
     "authors": [
         {
             "name": "cocobo1"
