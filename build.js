@@ -58,7 +58,7 @@ for (const plugin of plugins) {
     console.log(`Compiling ${plugin}...`);
     try {
         // Compile using esbuild with JSX support
-        execSync(`npx esbuild "${srcFile}" --outfile="${rootFile}" --bundle --minify --format=iife --platform=neutral`, {
+        execSync(`npx esbuild "${srcFile}" --outfile="${rootFile}" --bundle --minify --format=cjs --platform=neutral`, {
             stdio: 'inherit'
         });
 
