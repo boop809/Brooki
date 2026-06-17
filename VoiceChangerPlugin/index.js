@@ -1,6 +1,7 @@
 // Voice Changer Pro - Brooki/Pyoncord Plugin
 // A high-fidelity real-time voice modification settings panel with modern design and animations.
 
+(() => {
 const modApi = (typeof revenge !== "undefined" ? revenge : (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.revenge || window.bunny || window.vendetta)));
 const { metro, patcher, storage } = modApi;
 
@@ -442,7 +443,7 @@ const styles = StyleSheet.create({
     }
 });
 
-var plugin = {
+return {
     onLoad: () => {
         try {
             console.log("[VoiceChangerPro] Active!");
@@ -459,3 +460,5 @@ var plugin = {
     },
     settings: SettingsView // Exporting the premium UI as settings view
 };
+
+})()

@@ -1,6 +1,7 @@
 // EditUsers Pro - Brooki/Pyoncord Plugin
 // Premium mobile port of Vencord's EditUsers. Customizes everything client-side.
 
+(() => {
 const modApi = (typeof revenge !== "undefined" ? revenge : (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.revenge || window.bunny || window.vendetta)));
 const { metro, patcher, storage } = modApi;
 
@@ -991,7 +992,7 @@ const styles = StyleSheet.create({
 // Patches Registry
 let patches = [];
 
-var plugin = {
+return {
     onLoad: () => {
         try {
             console.log("[EditUsersPro] Injecting client spoof hooks...");
@@ -1180,3 +1181,5 @@ var plugin = {
     },
     settings: SettingsView
 };
+
+})()

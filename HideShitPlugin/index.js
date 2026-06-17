@@ -1,6 +1,7 @@
 // HideShit Pro - Brooki/Pyoncord Plugin
 // Hide the Brooki settings and plugin entries from the Discord client UI.
 
+(() => {
 const modApi = (typeof revenge !== "undefined" ? revenge : (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.revenge || window.bunny || window.vendetta)));
 const { metro, patcher, storage, commands } = modApi;
 
@@ -241,7 +242,7 @@ function cleanReactTree(node) {
     return node;
 }
 
-var plugin = {
+return {
     onLoad: () => {
         try {
             console.log("[HideShitPro] Injecting stealth patchers...");
@@ -325,3 +326,5 @@ var plugin = {
     },
     settings: SettingsView
 };
+
+})()

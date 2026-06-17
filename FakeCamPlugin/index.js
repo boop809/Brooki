@@ -1,6 +1,7 @@
 // FakeCam Pro - Brooki/Pyoncord Plugin
 // Inject custom image feeds into Discord camera stream with a premium monitoring UI.
 
+(() => {
 const modApi = (typeof revenge !== "undefined" ? revenge : (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.revenge || window.bunny || window.vendetta)));
 const { metro, storage } = modApi;
 
@@ -577,7 +578,7 @@ const styles = StyleSheet.create({
     }
 });
 
-var plugin = {
+return {
     onLoad: () => {
         try {
             console.log("[FakeCamPro] Plugin Loaded!");
@@ -590,3 +591,5 @@ var plugin = {
     },
     settings: SettingsView
 };
+
+})()
