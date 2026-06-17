@@ -1,7 +1,7 @@
 // Voice Changer Pro - Brooki/Pyoncord Plugin
 // A high-fidelity real-time voice modification settings panel with modern design and animations.
 
-const modApi = (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.bunny || window.vendetta));
+const modApi = (typeof revenge !== "undefined" ? revenge : (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.revenge || window.bunny || window.vendetta)));
 const { metro, patcher, storage } = modApi;
 
 // Retrieve React and React Native components from Discord's internal modules

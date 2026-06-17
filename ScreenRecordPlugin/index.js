@@ -1,7 +1,7 @@
 // RecAudio Pro - Brooki/Pyoncord Plugin
 // Bypass iOS VoIP screen recording blocks and capture other users' voice in calls.
 
-const modApi = (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.bunny || window.vendetta));
+const modApi = (typeof revenge !== "undefined" ? revenge : (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.revenge || window.bunny || window.vendetta)));
 const { metro, storage } = modApi;
 
 // Retrieve standard React and React Native components
