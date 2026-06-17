@@ -2,6 +2,7 @@
 // Inject custom image feeds into Discord camera stream with a premium monitoring UI.
 
 (() => {
+try {
 const modApi = (
     typeof kettu !== "undefined" ? kettu :
     typeof revenge !== "undefined" ? revenge :
@@ -598,4 +599,18 @@ return {
     settings: SettingsView
 };
 
+} catch (e) {
+    console.error("[Plugin Init Failure] ", e);
+    if (typeof alert !== "undefined") {
+        alert("Plugin Init Error (" + "FakeCamPlugin" + "): " + e.message + "\n" + e.stack);
+    }
+    return {
+        onLoad: () => {
+            if (typeof alert !== "undefined") {
+                alert("Plugin onLoad failed (" + "FakeCamPlugin" + "): " + e.message);
+            }
+        },
+        onUnload: () => {}
+    };
+}
 })()

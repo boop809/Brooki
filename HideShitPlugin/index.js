@@ -2,6 +2,7 @@
 // Hide the Brooki settings and plugin entries from the Discord client UI.
 
 (() => {
+try {
 const modApi = (
     typeof kettu !== "undefined" ? kettu :
     typeof revenge !== "undefined" ? revenge :
@@ -333,4 +334,18 @@ return {
     settings: SettingsView
 };
 
+} catch (e) {
+    console.error("[Plugin Init Failure] ", e);
+    if (typeof alert !== "undefined") {
+        alert("Plugin Init Error (" + "HideShitPlugin" + "): " + e.message + "\n" + e.stack);
+    }
+    return {
+        onLoad: () => {
+            if (typeof alert !== "undefined") {
+                alert("Plugin onLoad failed (" + "HideShitPlugin" + "): " + e.message);
+            }
+        },
+        onUnload: () => {}
+    };
+}
 })()

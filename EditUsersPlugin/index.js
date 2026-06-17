@@ -2,6 +2,7 @@
 // Premium mobile port of Vencord's EditUsers. Customizes everything client-side.
 
 (() => {
+try {
 const modApi = (
     typeof kettu !== "undefined" ? kettu :
     typeof revenge !== "undefined" ? revenge :
@@ -1188,4 +1189,18 @@ return {
     settings: SettingsView
 };
 
+} catch (e) {
+    console.error("[Plugin Init Failure] ", e);
+    if (typeof alert !== "undefined") {
+        alert("Plugin Init Error (" + "EditUsersPlugin" + "): " + e.message + "\n" + e.stack);
+    }
+    return {
+        onLoad: () => {
+            if (typeof alert !== "undefined") {
+                alert("Plugin onLoad failed (" + "EditUsersPlugin" + "): " + e.message);
+            }
+        },
+        onUnload: () => {}
+    };
+}
 })()

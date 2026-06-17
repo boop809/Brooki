@@ -3,6 +3,7 @@
 
 // Safely get the API of the mod loader (works for Bunny, Pyoncord, or Vendetta)
 (() => {
+try {
 const modApi = (
     typeof kettu !== "undefined" ? kettu :
     typeof revenge !== "undefined" ? revenge :
@@ -87,4 +88,18 @@ return {
     }
 };
 
+} catch (e) {
+    console.error("[Plugin Init Failure] ", e);
+    if (typeof alert !== "undefined") {
+        alert("Plugin Init Error (" + "ExamplePlugin" + "): " + e.message + "\n" + e.stack);
+    }
+    return {
+        onLoad: () => {
+            if (typeof alert !== "undefined") {
+                alert("Plugin onLoad failed (" + "ExamplePlugin" + "): " + e.message);
+            }
+        },
+        onUnload: () => {}
+    };
+}
 })()

@@ -2,6 +2,7 @@
 // A high-fidelity real-time voice modification settings panel with modern design and animations.
 
 (() => {
+try {
 const modApi = (
     typeof kettu !== "undefined" ? kettu :
     typeof revenge !== "undefined" ? revenge :
@@ -467,4 +468,18 @@ return {
     settings: SettingsView // Exporting the premium UI as settings view
 };
 
+} catch (e) {
+    console.error("[Plugin Init Failure] ", e);
+    if (typeof alert !== "undefined") {
+        alert("Plugin Init Error (" + "VoiceChangerPlugin" + "): " + e.message + "\n" + e.stack);
+    }
+    return {
+        onLoad: () => {
+            if (typeof alert !== "undefined") {
+                alert("Plugin onLoad failed (" + "VoiceChangerPlugin" + "): " + e.message);
+            }
+        },
+        onUnload: () => {}
+    };
+}
 })()
