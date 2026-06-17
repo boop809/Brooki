@@ -1,0 +1,7 @@
+{
+    "name": "EditUsers Pro",
+    "description": "Locally customize any Discord user profile. Modify nicknames, custom flags, avatars, banners, bio, and pronouns for premium mockups.",
+    "author": "cocobo1",
+    "main": "index.js",
+    "hash": "1.0.0"
+}

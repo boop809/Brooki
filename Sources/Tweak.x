@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import <AVFoundation/AVFoundation.h>
 
 #import "Fonts.h"
 #import "LoaderConfig.h"
@@ -65,7 +66,7 @@ id                    gBridge        = nil;
     else
     {
         bundleUrl = [NSURL
-            URLWithString:@"https://codeberg.org/cocobo1/Kettu/raw/branch/dist/kettu.min.js"];
+            URLWithString:@"https://codeberg.org/cocobo1/Brooki/raw/branch/dist/brooki.min.js"];
         BunnyLog(@"Using default bundle URL: %@", bundleUrl.absoluteString);
     }
 
@@ -258,6 +259,117 @@ id                    gBridge        = nil;
 
 %end
 
+%hook AVAudioSession
+
+- (BOOL)setCategory:(NSString *)category error:(NSError **)outError
+{
+    BOOL screenRecordBypass = NO;
+    @try {
+        NSURL *docDir = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].lastObject;
+        NSURL *settingsURL = [docDir URLByAppendingPathComponent:@"vd_mmkv/VENDETTA_SETTINGS"];
+        NSData *data = [NSData dataWithContentsOfURL:settingsURL];
+        if (data) {
+            NSDictionary *settings = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if ([[settings objectForKey:@"screenRecordBypass"] boolValue]) {
+                screenRecordBypass = YES;
+            }
+            NSDictionary *plugins = settings[@"plugins"];
+            if (plugins) {
+                for (NSString *key in plugins) {
+                    if ([key containsString:@"recaudio"] || [key containsString:@"screenrecord"]) {
+                        NSDictionary *plStorage = plugins[key];
+                        if ([[plStorage objectForKey:@"enabled"] boolValue]) {
+                            screenRecordBypass = YES;
+                        }
+                    }
+                }
+            }
+        }
+    } @catch (NSException *exception) {
+        BunnyLog(@"Error reading settings in Tweak: %@", exception);
+    }
+
+    if (screenRecordBypass && [category isEqualToString:@"AVAudioSessionCategoryPlayAndRecord"])
+    {
+        return [self setCategory:category withOptions:3 error:outError]; // MixWithOthers (1) | DefaultToSpeaker (2)
+    }
+    return %orig;
+}
+
+- (BOOL)setCategory:(NSString *)category withOptions:(NSUInteger)options error:(NSError **)outError
+{
+    BOOL screenRecordBypass = NO;
+    @try {
+        NSURL *docDir = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].lastObject;
+        NSURL *settingsURL = [docDir URLByAppendingPathComponent:@"vd_mmkv/VENDETTA_SETTINGS"];
+        NSData *data = [NSData dataWithContentsOfURL:settingsURL];
+        if (data) {
+            NSDictionary *settings = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if ([[settings objectForKey:@"screenRecordBypass"] boolValue]) {
+                screenRecordBypass = YES;
+            }
+            NSDictionary *plugins = settings[@"plugins"];
+            if (plugins) {
+                for (NSString *key in plugins) {
+                    if ([key containsString:@"recaudio"] || [key containsString:@"screenrecord"]) {
+                        NSDictionary *plStorage = plugins[key];
+                        if ([[plStorage objectForKey:@"enabled"] boolValue]) {
+                            screenRecordBypass = YES;
+                        }
+                    }
+                }
+            }
+        }
+    } @catch (NSException *exception) {
+        BunnyLog(@"Error reading settings in Tweak: %@", exception);
+    }
+
+    if (screenRecordBypass && [category isEqualToString:@"AVAudioSessionCategoryPlayAndRecord"])
+    {
+        options |= 1; // AVAudioSessionCategoryOptionMixWithOthers
+        options |= 2; // AVAudioSessionCategoryOptionDefaultToSpeaker
+    }
+    return %orig(category, options, outError);
+}
+
+- (BOOL)setCategory:(NSString *)category mode:(NSString *)mode options:(NSUInteger)options error:(NSError **)outError
+{
+    BOOL screenRecordBypass = NO;
+    @try {
+        NSURL *docDir = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].lastObject;
+        NSURL *settingsURL = [docDir URLByAppendingPathComponent:@"vd_mmkv/VENDETTA_SETTINGS"];
+        NSData *data = [NSData dataWithContentsOfURL:settingsURL];
+        if (data) {
+            NSDictionary *settings = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if ([[settings objectForKey:@"screenRecordBypass"] boolValue]) {
+                screenRecordBypass = YES;
+            }
+            NSDictionary *plugins = settings[@"plugins"];
+            if (plugins) {
+                for (NSString *key in plugins) {
+                    if ([key containsString:@"recaudio"] || [key containsString:@"screenrecord"]) {
+                        NSDictionary *plStorage = plugins[key];
+                        if ([[plStorage objectForKey:@"enabled"] boolValue]) {
+                            screenRecordBypass = YES;
+                        }
+                    }
+                }
+            }
+        }
+    } @catch (NSException *exception) {
+        BunnyLog(@"Error reading settings in Tweak: %@", exception);
+    }
+
+    if (screenRecordBypass && [category isEqualToString:@"AVAudioSessionCategoryPlayAndRecord"])
+    {
+        options |= 1; // AVAudioSessionCategoryOptionMixWithOthers
+        options |= 2; // AVAudioSessionCategoryOptionDefaultToSpeaker
+    }
+    return %orig(category, mode, options, outError);
+}
+
+%end
+
 %hook UIWindow
 
 - (void)motionBegan:(UIEventSubtype)motion withEvent:(UIEvent *)event
@@ -292,7 +404,7 @@ id                    gBridge        = nil;
 {
     @autoreleasepool
     {
-        source = [NSURL URLWithString:@"kettu"];
+        source = [NSURL URLWithString:@"brooki"];
 
         NSString *install_prefix = @"/var/jb";
         isJailbroken             = [[NSFileManager defaultManager] fileExistsAtPath:install_prefix];

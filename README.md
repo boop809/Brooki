@@ -1,10 +1,10 @@
-# KettuTweak
+# BrookiTweak
 
-Tweak to inject Kettu into discord
+Tweak to inject Brooki into Discord
 
 ## Installation
 
-The latest builds can be found in the [Releases](https://github.com/C0C0B01/KettuTweak/releases) tab.
+The latest builds can be found in the [Releases](https://github.com/C0C0B01/BrookiTweak/releases) tab.
 
 <details>
 <summary>Issues & Workaround</summary>

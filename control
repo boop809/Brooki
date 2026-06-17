@@ -1,11 +1,11 @@
-Package: cocobo1.kettu.tweak
-Name: KettuTweak
+Package: cocobo1.brooki.tweak
+Name: BrookiTweak
 Version: 2.0.0
 Architecture: iphoneos-arm
-Description: A tweak to inject Kettu into Discord
+Description: A tweak to inject Brooki into Discord
 Maintainer: cocobo1
 Author: cocobo1, Bwlok
-Icon: <https://codeberg.org/cocobo1/Kettu/raw/branch/main/src/assets/icons/kettu.png>
+Icon: <https://codeberg.org/cocobo1/Brooki/raw/branch/main/src/assets/icons/brooki.png>
 Section: Tweaks
 Depends: mobilesubstrate (>= 0.9.5000)
 Conflicts: app.enmity, mod.vendetta, app.unbound, com.cloudysnow.btloader, app.pyoncord

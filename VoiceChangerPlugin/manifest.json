@@ -1,0 +1,7 @@
+{
+    "name": "Voice Changer Pro",
+    "description": "Premium real-time Voice Changer with professional DSP presets, custom pitch/echo sliders, and an interactive audio visualizer.",
+    "author": "cocobo1",
+    "main": "index.js",
+    "hash": "1.0.0"
+}
