@@ -2,18 +2,24 @@
 // Hide the Brooki settings and plugin entries from the Discord client UI.
 
 (() => {
-const modApi = (typeof revenge !== "undefined" ? revenge : (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.revenge || window.bunny || window.vendetta)));
+const modApi = (
+    typeof kettu !== "undefined" ? kettu :
+    typeof revenge !== "undefined" ? revenge :
+    typeof bunny !== "undefined" ? bunny :
+    typeof vendetta !== "undefined" ? vendetta :
+    window.kettu || window.revenge || window.bunny || window.vendetta
+);
 const { metro, patcher, storage, commands } = modApi;
 
 // Retrieve standard React and React Native components
-const React = metro.common.React;
+const React = metro.common?.React || metro.React || metro.findByProps("createElement", "useState", "useEffect");
 const { 
     View, 
     Text, 
     ScrollView, 
     TouchableOpacity, 
     StyleSheet
-} = metro.common.ReactNative;
+} = metro.common?.ReactNative || metro.ReactNative || metro.findByProps("View", "Text");
 const FormSwitch = metro.findByDisplayName("FormSwitch") || metro.findByProps("Switch")?.Switch;
 
 // Initialize storage structure

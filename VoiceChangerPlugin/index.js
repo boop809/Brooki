@@ -2,11 +2,17 @@
 // A high-fidelity real-time voice modification settings panel with modern design and animations.
 
 (() => {
-const modApi = (typeof revenge !== "undefined" ? revenge : (typeof bunny !== "undefined" ? bunny : (typeof vendetta !== "undefined" ? vendetta : window.revenge || window.bunny || window.vendetta)));
+const modApi = (
+    typeof kettu !== "undefined" ? kettu :
+    typeof revenge !== "undefined" ? revenge :
+    typeof bunny !== "undefined" ? bunny :
+    typeof vendetta !== "undefined" ? vendetta :
+    window.kettu || window.revenge || window.bunny || window.vendetta
+);
 const { metro, patcher, storage } = modApi;
 
 // Retrieve React and React Native components from Discord's internal modules
-const React = metro.common.React;
+const React = metro.common?.React || metro.React || metro.findByProps("createElement", "useState", "useEffect");
 const { 
     View, 
     Text, 
@@ -16,7 +22,7 @@ const {
     Animated, 
     Dimensions,
     ActivityIndicator 
-} = metro.common.ReactNative;
+} = metro.common?.ReactNative || metro.ReactNative || metro.findByProps("View", "Text");
 
 // Locate Slider and Switch components or create high-quality custom ones
 const FormSlider = metro.findByDisplayName("FormSlider") || metro.findByProps("Slider")?.Slider;
