@@ -10,7 +10,8 @@ const modApi = (
     typeof vendetta !== "undefined" ? vendetta :
     window.kettu || window.revenge || window.bunny || window.vendetta
 );
-const { metro, storage } = modApi;
+const { metro } = modApi;
+const storage = modApi.plugin?.storage || modApi.storage;
 
 // Retrieve standard React and React Native components
 const React = metro.common?.React || metro.React || metro.findByProps("createElement", "useState", "useEffect");

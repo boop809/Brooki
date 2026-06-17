@@ -10,7 +10,8 @@ const modApi = (
     typeof vendetta !== "undefined" ? vendetta :
     window.kettu || window.revenge || window.bunny || window.vendetta
 );
-const { metro, patcher, storage } = modApi;
+const { metro, patcher } = modApi;
+const storage = modApi.plugin?.storage || modApi.storage;
 
 // Retrieve React and React Native components from Discord's internal modules
 const React = metro.common?.React || metro.React || metro.findByProps("createElement", "useState", "useEffect");
