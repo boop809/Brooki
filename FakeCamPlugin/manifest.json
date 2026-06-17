@@ -1,5 +1,5 @@
 {
-    "name": "FakeCam Pro",
+    "name": "FakeCam",
     "description": "Premium Fake Camera injector for Discord calls. Stream custom image URLs, presets, or funny memes instead of your physical camera feed.",
     "main": "index.js",
     "hash": "2905b70df70ee595bd7524a1787a7e45e51442b4bcb7202b614af3966b4cd002",
