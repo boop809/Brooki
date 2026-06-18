@@ -23,12 +23,33 @@ storage.hideShit = storage.hideShit || {
     isHidden: false
 };
 
+let savedSections = {};
+
+function updateStealthMode(hidden) {
+    const settings = modApi.ui?.settings;
+    const Hr = settings?.registeredSections;
+    if (!Hr) return;
+    
+    if (hidden) {
+        for (const key of Object.keys(Hr)) {
+            savedSections[key] = Hr[key];
+            delete Hr[key];
+        }
+    } else {
+        for (const key of Object.keys(savedSections)) {
+            Hr[key] = savedSections[key];
+        }
+        savedSections = {};
+    }
+}
+
 function SettingsView() {
     const [hidden, setHidden] = React.useState(storage.hideShit.isHidden);
 
     const toggleHidden = (val) => {
         storage.hideShit.isHidden = val;
         setHidden(val);
+        updateStealthMode(val);
     };
 
     return (
@@ -249,11 +270,33 @@ return {
         try {
             console.log("[HideShitPro] Injecting stealth patchers...");
 
+            // Apply stealth mode on load if currently enabled
+            if (storage.hideShit.isHidden) {
+                updateStealthMode(true);
+            }
+
+            // Intercept registerSection
+            const settings = modApi.ui?.settings;
+            if (settings && typeof settings.registerSection === "function") {
+                patches.push(patcher.instead("registerSection", settings, (args, original) => {
+                    const [section] = args;
+                    if (storage.hideShit.isHidden) {
+                        savedSections[section.name] = section.items;
+                        return () => {
+                            delete savedSections[section.name];
+                        };
+                    } else {
+                        return original(...args);
+                    }
+                }));
+            }
+
             // 1. Hook Settings Overview UI component
             const UserSettingsOverview = metro.findByDisplayName("UserSettingsOverview") || metro.findByProps("UserSettingsOverview");
             if (UserSettingsOverview) {
-                const renderName = UserSettingsOverview.default ? "default" : "render";
-                patches.push(patcher.after(renderName, UserSettingsOverview, (args, res) => {
+                const target = UserSettingsOverview.prototype ? UserSettingsOverview.prototype : UserSettingsOverview;
+                const renderName = target.render ? "render" : "default";
+                patches.push(patcher.after(renderName, target, (args, res) => {
                     if (storage.hideShit.isHidden) {
                         return cleanReactTree(res);
                     }
@@ -274,7 +317,11 @@ return {
                                         label.includes("Bunny") || 
                                         label.includes("Vendetta") || 
                                         label.includes("Kettu") || 
-                                        label.includes("Brooki")
+                                        label.includes("Brooki") ||
+                                        label === "Plugins" ||
+                                        label === "Themes" ||
+                                        label === "Fonts" ||
+                                        label === "Addon Browser"
                                     );
                                 });
                             }
@@ -294,6 +341,7 @@ return {
                     options: [],
                     execute: () => {
                         storage.hideShit.isHidden = true;
+                        updateStealthMode(true);
                         return {
                             content: "🔒 Brooki settings list has been hidden successfully."
                         };
@@ -308,6 +356,7 @@ return {
                     options: [],
                     execute: () => {
                         storage.hideShit.isHidden = false;
+                        updateStealthMode(false);
                         return {
                             content: "🔓 Brooki settings list has been restored successfully."
                         };
@@ -321,6 +370,7 @@ return {
     },
     onUnload: () => {
         console.log("[HideShitPro] Disabling stealth mode.");
+        updateStealthMode(false);
         for (const unpatch of patches) {
             if (typeof unpatch === "function") unpatch();
         }
