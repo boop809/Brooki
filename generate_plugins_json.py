@@ -31,7 +31,7 @@ for plugin in plugins:
                 "id": plugin_id,
                 "manifest": manifest,
                 "enabled": True,  # Pre-enable the plugin
-                "update": True,
+                "update": False,
                 "js": js_code
             }
             print(f"Bundled {plugin} successfully.")
